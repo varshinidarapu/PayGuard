@@ -18,7 +18,7 @@ services:
       - key: API_KEY
         generateValue: true
       - key: DEMO_MODE
-        value: "false"
+        value: "true"
       - key: ALLOW_CRASH_TESTS
         value: "false"
       - key: IDEMPOTENCY_TTL_SECONDS
