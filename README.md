@@ -4,13 +4,15 @@
 
 A complete local academic sandbox: FastAPI, PostgreSQL, Redis, and a browser dashboard. Uses simulated internal INR transfers only. No bank, card, paid API or subscription is required.
 
-## Start here for tomorrow's review
+## Why this working prototype is useful
 
-1. Start with the Docker option below, or use the native option if PostgreSQL and Redis are already installed.
-2. Open `http://127.0.0.1:8000`, paste API_KEY from `.env`, and press **Connect**.
-3. Follow `docs/LIVE_DEMO.md` and rehearse the six reliability tests.
-4. Read `docs/TEST_RESULTS.md`, `docs/PROJECT_REPORT.md`, and `docs/VIVA.md`.
-5. Use the architecture, test results and viva guide for your prototype review. A final slide deck is not included in this prototype package.
+1. **Prevents duplicate payments:** Redis recognizes fast retries, while PostgreSQL permanently enforces one payment per client and idempotency key.
+2. **Protects balances during concurrency:** account rows are locked in a fixed order inside PostgreSQL transactions before funds are checked and changed.
+3. **Recovers safely from failures:** uncertain requests reuse the original key, committed results replay, and interrupted transactions roll back completely.
+4. **Provides auditable evidence:** every successful transfer creates balanced debit and credit ledger entries, and the dashboard verifies stored balances against that ledger.
+5. **Demonstrates the behavior clearly:** the browser dashboard includes six executable reliability scenarios using simulated INR, with no bank or real-money integration.
+
+For complete startup, deployment, chat-recovery, testing, and demonstration steps, read `PAYGUARD_HANDOFF.md`.
 
 ## Option A: Docker Desktop (Windows / macOS / Linux)
 
@@ -41,7 +43,7 @@ Run the integration suite against an automatically created separate `payguard_te
 docker compose exec app python scripts/run_tests.py
 ```
 
-The suite uses ports 8001 and 8002 inside the container and leaves the review database untouched. It resets only a database whose name ends in `_test`. Retrieve its output if desired:
+The suite uses ports 8001 and 8002 inside the container and leaves the demonstration database untouched. It resets only a database whose name ends in `_test`. Retrieve its output if desired:
 
 ```powershell
 docker compose cp app:/app/evidence/integration-results.json ./evidence/latest-integration-results.json
@@ -96,9 +98,9 @@ In a second activated terminal:
 python scripts/run_tests.py
 ```
 
-This needs PostgreSQL and Redis but does not need the review API running. It creates an isolated test database, starts test API workers, executes all integration scenarios, writes JSON/JUnit/text evidence, and stops test workers. Review data stays intact. If CREATEDB is unavailable, have an administrator create `payguard_test` owned by `payguard` first.
+This needs PostgreSQL and Redis but does not need the main API running. It creates an isolated test database, starts test API workers, executes all integration scenarios, writes JSON/JUnit/text evidence, and stops test workers. Demonstration data stays intact. If CREATEDB is unavailable, have an administrator create `payguard_test` owned by `payguard` first.
 
-Optional browser checks, while the main app is running (these change review sandbox balances):
+Optional browser checks, while the main app is running (these change demonstration sandbox balances):
 
 ```bash
 python -m pip install -r requirements-dev.txt
@@ -139,7 +141,7 @@ db/            Schema, constraints, deferred commit validation and sample accoun
 infra/         Redis sandbox configuration
 scripts/       Setup, startup, isolated integration runner, browser verification
 tests/         Executable API, concurrency, outage, crash and database tests
-docs/          Architecture, API, academic report, results, demo, viva, presentation
+docs/          Architecture, API, development history, test results and operating guides
 evidence/      Actual execution JSON, JUnit XML and text output
 compose.yaml   PostgreSQL + Redis + app, host ports bound to loopback
 .env.example   Configuration template; actual .env is generated locally
