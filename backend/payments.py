@@ -16,15 +16,12 @@ class PaymentInterrupted(RuntimeError):
 
 log = logging.getLogger('payguard')
 cache = Redis.from_url(REDIS_URL, decode_responses=True, socket_connect_timeout=.2, socket_timeout=.2)
-CLIENT_ID = 'sandbox-operator'
-
-
 def fingerprint(body):
     return hashlib.sha256(json.dumps(body, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
 
 
-def cache_key(key):
-    return 'payguard:v1:' + hashlib.sha256((CLIENT_ID + ':' + key).encode()).hexdigest()
+def cache_key(client_id, key):
+    return 'payguard:v2:' + hashlib.sha256((client_id + ':' + key).encode()).hexdigest()
 
 
 def result(row):
@@ -32,25 +29,25 @@ def result(row):
             for k, v in row.items() if k not in ('client_id', 'request_hash')}
 
 
-def redis_read(key):
+def redis_read(client_id, key):
     try:
-        raw = cache.get(cache_key(key))
+        raw = cache.get(cache_key(client_id, key))
         return json.loads(raw) if raw else None
     except (RedisError, ValueError):
         log.warning('Redis unavailable or invalid cache. Falling back to PostgreSQL.')
         return None
 
 
-def redis_write(key, hashed, payment):
+def redis_write(client_id, key, hashed, payment):
     try:
-        cache.set(cache_key(key), json.dumps({'hash': hashed, 'payment': payment}), ex=TTL)
+        cache.set(cache_key(client_id, key), json.dumps({'hash': hashed, 'payment': payment}), ex=TTL)
     except RedisError:
         log.warning('Redis write failed after database settlement. Result remains durable.')
 
 
-def process(body, key, fault=None):
+def process(body, key, client_id, fault=None):
     hashed = fingerprint(body)
-    cached = redis_read(key)
+    cached = redis_read(client_id, key)
     if cached:
         if cached['hash'] != hashed:
             raise HTTPException(409, 'Idempotency key already belongs to a different request')
@@ -65,18 +62,18 @@ def process(body, key, fault=None):
             conn.execute("SET LOCAL statement_timeout = '10s'")
             # Stable account order prevents cross-transfer deadlocks.
             # Validate FKs before inserting the payment.
-            accounts = conn.execute('SELECT * FROM accounts WHERE id IN (%s,%s) ORDER BY id FOR UPDATE',
-                                    (body['sender_id'], body['receiver_id'])).fetchall()
+            accounts = conn.execute('SELECT * FROM accounts WHERE client_id=%s AND id IN (%s,%s) ORDER BY id FOR UPDATE',
+                                    (client_id, body['sender_id'], body['receiver_id'])).fetchall()
             if len(accounts) != 2:
-                raise HTTPException(404, 'Account not found')
+                raise HTTPException(403, 'Both accounts must belong to the authenticated client')
             row = conn.execute('''INSERT INTO payments
                 (id,client_id,idempotency_key,request_hash,sender_id,receiver_id,amount,currency,status)
                 VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'PROCESSING')
                 ON CONFLICT (client_id,idempotency_key) DO NOTHING RETURNING *''',
-                (payment_id, CLIENT_ID, key, hashed, body['sender_id'], body['receiver_id'], body['amount'], body['currency'])).fetchone()
+                (payment_id, client_id, key, hashed, body['sender_id'], body['receiver_id'], body['amount'], body['currency'])).fetchone()
             if row is None:
                 row = conn.execute('SELECT * FROM payments WHERE client_id=%s AND idempotency_key=%s',
-                                   (CLIENT_ID, key)).fetchone()
+                                   (client_id, key)).fetchone()
                 if row['request_hash'] != hashed:
                     raise HTTPException(409, 'Idempotency key already belongs to a different request')
                 replayed = True
@@ -98,6 +95,6 @@ def process(body, key, fault=None):
     payment = result(row)
     if fault == 'crash-after-commit' and ALLOW_CRASH_TESTS:
         os._exit(72)
-    redis_write(key, hashed, payment)
+    redis_write(client_id, key, hashed, payment)
     log.info('payment=%s status=%s replayed=%s', payment['id'], payment['status'], replayed)
     return payment, replayed, 'postgresql' if replayed else 'new'

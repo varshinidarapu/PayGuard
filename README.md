@@ -2,7 +2,7 @@
 
 **An Idempotent Payment Gateway for Secure and Consistent Transaction Processing**
 
-A complete local academic sandbox: FastAPI, PostgreSQL, Redis, and a browser dashboard. Uses simulated internal INR transfers only. No bank, card, paid API or subscription is required.
+A complete multi-client academic sandbox: FastAPI, PostgreSQL, Redis, database-backed API keys, and a responsive browser dashboard. Uses simulated internal INR transfers only. No bank, card, paid API or subscription is required.
 
 ## Why this working prototype is useful
 
@@ -50,7 +50,7 @@ docker compose cp app:/app/evidence/integration-results.json ./evidence/latest-i
 docker compose cp app:/app/evidence/pytest-output.txt ./evidence/latest-pytest-output.txt
 ```
 
-Docker is included as a portable startup option. Docker itself was unavailable in the build environment, so the Compose build was not executed here. The actual application was executed and tested natively with real PostgreSQL 16.15 and Redis 7.0.15. See `docs/TEST_RESULTS.md` for exact evidence and limitations.
+Docker Compose startup was verified on Windows with real PostgreSQL 16 and Redis 7 services. See `docs/TEST_RESULTS.md` for exact evidence and limitations.
 
 ## Option B: Native Python + PostgreSQL + Redis
 
@@ -130,7 +130,13 @@ The app itself has no Node or browser-automation dependency. JavaScript/CSS are 
 | 2 | Demo Merchant | 5,000.00 | 500,000 |
 | 3 | Reserve Wallet | 2,500.00 | 250,000 |
 
-All accounts belong to a single sandbox operator. This API key can transfer among them. It is not a customer login or a real payment authorization system. There is no unrelated registration module.
+Accounts belong to database-backed clients. An authenticated client sees and transfers only between its own authorized accounts, and sees only its payment and ledger records. The bootstrap client owns the three sample accounts.
+
+## API keys versus payment idempotency keys
+
+- **Client API keys** authenticate access. Their secrets are stored only as hashes, shown once when created, and can be listed by prefix, expired, rotated or revoked in **API Key Management**.
+- **Payment idempotency keys** identify one intended payment. Reuse the same value only for a retry. They remain scoped to the stable client ID, so rotating an API key cannot settle the payment again.
+- The `.env` `API_KEY` is the initial administrator bootstrap key. Use the dashboard to create normal expiring client keys; never commit or display any full key.
 
 ## Files
 
@@ -161,4 +167,4 @@ compose.yaml   PostgreSQL + Redis + app, host ports bound to loopback
 
 ## Scope of the guarantee
 
-At most one committed internal settlement per operator/key, backed by one authoritative PostgreSQL database. This does not mean exactly-once HTTP delivery or deduplication across different keys. Production payment processing would require external provider reconciliation and additional security/operational controls. Keep this simulation local. Fault injection requires DEMO_MODE, and process-exit faults additionally require ALLOW_CRASH_TESTS (false by default).
+At most one committed internal settlement per client/payment-idempotency-key, backed by one authoritative PostgreSQL database. This does not mean exactly-once HTTP delivery or deduplication across different payment keys. Production payment processing would require external provider reconciliation and additional security/operational controls. Keep this simulation local. Fault injection requires DEMO_MODE, and process-exit faults additionally require ALLOW_CRASH_TESTS (false by default).

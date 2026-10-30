@@ -1,10 +1,43 @@
+CREATE TABLE IF NOT EXISTS clients (
+ id text PRIMARY KEY,
+ name varchar(100) NOT NULL,
+ is_admin boolean NOT NULL DEFAULT false,
+ created_at timestamptz NOT NULL DEFAULT now()
+);
+INSERT INTO clients(id,name,is_admin) VALUES ('sandbox-operator','PayGuard Sandbox',true)
+ON CONFLICT(id) DO UPDATE SET is_admin=true;
+CREATE TABLE IF NOT EXISTS api_keys (
+ id uuid PRIMARY KEY,
+ client_id text NOT NULL REFERENCES clients(id),
+ key_hash char(64) NOT NULL UNIQUE,
+ prefix varchar(20) NOT NULL,
+ label varchar(80) NOT NULL,
+ expires_at timestamptz,
+ revoked_at timestamptz,
+ created_at timestamptz NOT NULL DEFAULT now(),
+ last_used_at timestamptz,
+ CHECK (expires_at IS NULL OR expires_at > created_at)
+);
+CREATE INDEX IF NOT EXISTS api_keys_client_idx ON api_keys(client_id,created_at DESC);
 CREATE TABLE IF NOT EXISTS accounts (
  id integer PRIMARY KEY,
+ client_id text NOT NULL DEFAULT 'sandbox-operator' REFERENCES clients(id),
  name varchar(60) NOT NULL,
  currency char(3) NOT NULL DEFAULT 'INR' CHECK (currency = 'INR'),
  opening_balance bigint NOT NULL CHECK (opening_balance >= 0),
  balance bigint NOT NULL CHECK (balance >= 0)
 );
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS client_id text DEFAULT 'sandbox-operator';
+UPDATE accounts SET client_id='sandbox-operator' WHERE client_id IS NULL;
+ALTER TABLE accounts ALTER COLUMN client_id SET NOT NULL;
+DO $$ BEGIN
+ IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='accounts_client_fk') THEN
+  ALTER TABLE accounts ADD CONSTRAINT accounts_client_fk FOREIGN KEY(client_id) REFERENCES clients(id);
+ END IF;
+ IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='accounts_id_client_unique') THEN
+  ALTER TABLE accounts ADD CONSTRAINT accounts_id_client_unique UNIQUE(id,client_id);
+ END IF;
+END $$;
 CREATE TABLE IF NOT EXISTS payments (
  id uuid PRIMARY KEY,
  client_id text NOT NULL,
@@ -25,6 +58,17 @@ CREATE TABLE IF NOT EXISTS payments (
  OR (status='FAILED' AND completed_at IS NOT NULL AND failure_code='INSUFFICIENT_FUNDS'))
 );
 CREATE INDEX IF NOT EXISTS payments_created_idx ON payments (created_at DESC);
+DO $$ BEGIN
+ IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='payments_client_fk') THEN
+  ALTER TABLE payments ADD CONSTRAINT payments_client_fk FOREIGN KEY(client_id) REFERENCES clients(id);
+ END IF;
+ IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='payments_sender_owner_fk') THEN
+  ALTER TABLE payments ADD CONSTRAINT payments_sender_owner_fk FOREIGN KEY(sender_id,client_id) REFERENCES accounts(id,client_id);
+ END IF;
+ IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='payments_receiver_owner_fk') THEN
+  ALTER TABLE payments ADD CONSTRAINT payments_receiver_owner_fk FOREIGN KEY(receiver_id,client_id) REFERENCES accounts(id,client_id);
+ END IF;
+END $$;
 CREATE TABLE IF NOT EXISTS ledger_entries (
  payment_id uuid NOT NULL REFERENCES payments(id),
  account_id integer NOT NULL REFERENCES accounts(id),
@@ -60,8 +104,8 @@ DROP TRIGGER IF EXISTS payment_terminal_guard ON payments;
 CREATE TRIGGER payment_terminal_guard BEFORE UPDATE OR DELETE ON payments
  FOR EACH ROW EXECUTE FUNCTION forbid_terminal_change();
 -- Seed amounts are integer paise: INR 10,000 / 5,000 / 2,500.
-INSERT INTO accounts(id,name,opening_balance,balance) VALUES
- (1,'Sandbox Wallet',1000000,1000000),
- (2,'Demo Merchant',500000,500000),
- (3,'Reserve Wallet',250000,250000)
+INSERT INTO accounts(id,client_id,name,opening_balance,balance) VALUES
+ (1,'sandbox-operator','Sandbox Wallet',1000000,1000000),
+ (2,'sandbox-operator','Demo Merchant',500000,500000),
+ (3,'sandbox-operator','Reserve Wallet',250000,250000)
 ON CONFLICT(id) DO NOTHING;

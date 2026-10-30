@@ -8,7 +8,7 @@ This file preserves the useful development context and gives step-by-step instru
 - GitHub repository: `https://github.com/varshinidarapu/PayGuard`
 - Public Render application: `https://payguard-app-tmwg.onrender.com/`
 - Stack: FastAPI, PostgreSQL 16, Redis-compatible cache, Docker Compose, and a browser dashboard.
-- Backend result: 16 of 16 isolated integration tests passed.
+- Backend result: 21 of 21 isolated integration tests passed.
 - Hosted dashboard result: 6 of 6 reliability demonstrations passed.
 - The application uses simulated INR only. It does not move real money.
 
@@ -22,6 +22,8 @@ This file preserves the useful development context and gives step-by-step instru
 6. Failure demonstrations for delayed responses, insufficient funds, and rollback.
 7. A responsive dashboard with payment, reliability tests, history, ledger audit, and About sections.
 8. Docker Compose startup, isolated test database automation, GitHub source control, and Render deployment.
+9. Database-backed clients and hashed API keys with one-time secret display, safe prefix listing, expiry, rotation and revocation.
+10. Client-owned accounts plus private payment and ledger records; API-key rotation preserves client-scoped payment idempotency.
 
 During setup, `scripts/run_tests.py` was corrected to create its excluded `evidence` directory inside the Docker image. Render support was added through `render.yaml`, and the Docker command was updated to respect Render's `PORT` while keeping local port 8000.
 
@@ -98,10 +100,10 @@ docker compose exec app python scripts/run_tests.py
 Expected final result:
 
 ```text
-16 passed
+21 passed
 ```
 
-These tests cover duplicate requests, simultaneous same-key requests, concurrent transfers, overspending, conflicting payloads, Redis expiry/outage, authentication, validation, process crashes, opposite-direction locks, and database constraints.
+These tests cover all original payment safeguards plus multiple clients, ownership isolation, safe key listing, expiry, revocation, rotation, unauthorized administration and duplicate retry after rotation.
 
 ## 7. Run the six dashboard demonstrations
 
@@ -131,7 +133,40 @@ The six demonstrations prove:
 - **Ledger & audit:** verifies that opening balances plus ledger changes equal current balances.
 - **About:** summarizes the prototype, architecture, usage, and limitations.
 
-## 9. Important safety and scope
+## 9. How to build the entire prototype from the beginning
+
+Follow this order if the project must be recreated or explained as a development process. The finished implementations are already present in the named files.
+
+1. **Create the project structure:** add `backend`, `frontend`, `db`, `infra`, `scripts`, `tests`, `docs`, and `evidence` folders.
+2. **Define configuration:** create `.env.example`, then use `scripts/configure.py` to generate a private `.env` without overwriting an existing one.
+3. **Design PostgreSQL storage:** implement accounts, payments, and double-entry ledger tables in `db/schema.sql`. Add the permanent unique constraint on `(client_id, idempotency_key)`.
+4. **Add the API foundation:** use `backend/config.py` for settings, `backend/database.py` for the PostgreSQL pool, `backend/models.py` for request validation, and `backend/main.py` for FastAPI routes and static dashboard hosting.
+5. **Implement safe settlement:** in `backend/payments.py`, start a PostgreSQL transaction, lock both account rows in increasing ID order, verify funds, update balances, create balanced ledger entries, and commit the final payment status atomically.
+6. **Add duplicate protection:** reserve each idempotency key in PostgreSQL, store request fingerprints and completed responses in Redis, and always fall back to PostgreSQL when Redis is unavailable or expired.
+7. **Add failure recovery:** ensure exceptions roll back the transaction, failed payments cannot change balances, committed payments replay after a lost response, and retries use the original idempotency key.
+8. **Build the dashboard:** create the layout in `frontend/index.html`, styling in `frontend/style.css` and `frontend/about.css`, and API calls plus six reliability demonstrations in `frontend/app.js`.
+9. **Containerize everything:** define the Python application in `Dockerfile`; define PostgreSQL, Redis, health checks, volumes, and the app in `compose.yaml`; configure Redis with `infra/redis.conf`.
+10. **Add initialization and startup:** use `scripts/init_db.py` for schema/sample data and `scripts/start.ps1` for Windows startup. Build locally with:
+
+```powershell
+python scripts/configure.py
+docker compose up --build -d
+docker compose ps
+```
+
+11. **Add isolated automated tests:** implement fixtures in `tests/conftest.py`, safeguard scenarios in `tests/test_payments.py`, and execute them through `scripts/run_tests.py` against `payguard_test` only:
+
+```powershell
+docker compose exec app python scripts/run_tests.py
+```
+
+12. **Verify the user demonstration:** connect at `http://127.0.0.1:8000`, show the authenticated client, create and revoke a temporary API key, run all six dashboard tests, inspect Transactions, and verify Ledger & audit. The expected results are `21 passed` in the backend and `6 / 6 passed` in the dashboard.
+13. **Publish the source:** initialize Git, exclude `.env`, commit the project, add the GitHub remote, and push `main`. Never commit API keys.
+14. **Deploy on Render:** use `render.yaml` to create the web service, PostgreSQL, and Redis-compatible service. After deployment, obtain `API_KEY` from Render Environment, connect the dashboard, and repeat all six demonstrations.
+
+The architecture explanation is in `docs/ARCHITECTURE.md`, API behavior is in `docs/API.md`, and recorded test evidence is summarized in `docs/TEST_RESULTS.md`.
+
+## 10. Important safety and scope
 
 - Never commit `.env` or expose `API_KEY`.
 - Keep `ALLOW_CRASH_TESTS=false` on Render.

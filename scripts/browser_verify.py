@@ -14,6 +14,18 @@ with sync_playwright() as p:
     page.goto('http://127.0.0.1:8000',wait_until='networkidle')
     page.fill('#token',API_KEY);page.click('#connect')
     expect(page.locator('#consistent')).to_contain_text('Verified',timeout=30000)
+    expect(page.locator('#client-badge')).to_contain_text('sandbox-operator')
+    page.fill('#key-label','Browser acceptance key');page.click('#create-api-key')
+    expect(page.locator('#secret-panel')).to_be_visible()
+    one_time_secret=page.locator('#one-time-secret').inner_text()
+    assert one_time_secret.startswith('pg_live_') and len(one_time_secret)>32
+    prefix=one_time_secret[:14]
+    row=page.locator('#api-keys tr',has_text=prefix)
+    expect(row).to_contain_text('ACTIVE')
+    assert one_time_secret not in row.inner_text(), 'Full secret leaked into key list'
+    page.on('dialog',lambda dialog:dialog.accept())
+    row.get_by_text('Revoke').click()
+    expect(row).to_contain_text('REVOKED')
     # Screenshot excludes the credential panel. It contains only synthetic accounts.
     page.locator('#auth').evaluate("el=>el.style.visibility='hidden'")
     page.screenshot(path=str(ROOT/'evidence/dashboard-desktop.png'),full_page=True)
@@ -36,6 +48,6 @@ with sync_playwright() as p:
     page.set_viewport_size({'width':390,'height':844})
     assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth'), 'Mobile layout overflows'
     assert not errors,errors
-    (ROOT/'evidence/browser-results.json').write_text(json.dumps({'status':'PASS','six_dashboard_tests':'6 / 6 passed','form_payment_and_retry_same_id':True,'key_persisted_after_reload':True,'mobile_width':390,'javascript_errors':errors,'test_log':results},indent=2))
-    print('Browser acceptance: six demonstrations, form payment, same-key retry, reload recovery, mobile layout PASS')
+    (ROOT/'evidence/browser-results.json').write_text(json.dumps({'status':'PASS','client_identity_visible':True,'one_time_key_creation':True,'full_secret_absent_from_list':True,'revocation':True,'six_dashboard_tests':'6 / 6 passed','form_payment_and_retry_same_id':True,'key_persisted_after_reload':True,'mobile_width':390,'javascript_errors':errors,'test_log':results},indent=2))
+    print('Browser acceptance: client identity, key create/revoke, six demonstrations, payment retry, reload, mobile layout PASS')
     browser.close()

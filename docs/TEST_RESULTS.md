@@ -1,6 +1,6 @@
 # Verified execution results
 
-Final verification: 30 October 2026. Backend: **16 passed in 5.22 seconds**. Browser: **6 / 6 demonstration tests passed**.
+Final verification: 31 October 2026. Backend: **21 passed in 19.85 seconds**. Browser: **client identity, one-time key creation, safe listing, revocation, 6 / 6 demonstrations, payment retry, reload and 390px mobile layout passed**.
 
 All amounts below are integer paise. Each backend case starts with fresh accounts: sender 1,000,000, receiver 500,000, reserve 250,000. The browser suite instead performs six tests sequentially against its sandbox.
 
@@ -29,10 +29,15 @@ All amounts below are integer paise. Each backend case starts with fresh account
 | API process crash after commit | Worker exit 72 before Redis write, stored payment present, retry replays same settlement |
 | Opposite-direction transfers | 40 successes with original final balances and no observed deadlock |
 | Database guards | Negative balance and unfinished PROCESSING commit both rejected |
+| Multiple clients and ownership | Only owned accounts visible; foreign debit 403; another client's payment lookup 404 |
+| Safe API-key listing and revocation | Full secret returned once, absent from list, revoked key rejected with 401 |
+| API-key expiry | Expired key rejected with 401 and listed as EXPIRED |
+| API-key rotation | Old key rejected; new key retried an existing payment and received the same payment ID |
+| Client administration | Non-administrator client creation rejected with 403 |
 
 ## Browser acceptance
 
-Chromium 134 executed the actual dashboard. All six tests passed. A normal form payment followed by Retry last submitted request returned the same payment ID. The original key survived reload. At 390 pixels, the document did not overflow horizontally. No JavaScript page errors were observed. Screenshots were used internally for layout inspection and are not distributed.
+Chromium 134 executed the actual dashboard. Client identity was visible; an API key was created with a one-time secret, the full secret was absent from the list, and revocation succeeded. All six payment demonstrations passed. A form payment and safe retry returned the same payment ID. At 390 pixels the page did not overflow, and no JavaScript errors were observed.
 
 ## Hosted Render verification
 
@@ -42,7 +47,7 @@ The hosted environment uses Render PostgreSQL and Redis-compatible Key Value res
 
 ## Evidence and reproduction
 
-- `evidence/pytest-output.txt`: final terminal output, including all 16 case results.
+- `evidence/pytest-output.txt`: final terminal output, including all 21 case results.
 - `evidence/junit.xml`: JUnit test report.
 - `evidence/integration-results.json`: expected and actual values for each passed case, with payment IDs, balances and audit snapshots.
 - `evidence/browser-results.json`: browser checks and full six-test execution log.

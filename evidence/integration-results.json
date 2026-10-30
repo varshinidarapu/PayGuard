@@ -17,16 +17,16 @@
         "3": 250000
       },
       "payment": {
-        "id": "b389fe28-8fb5-4bbb-b3e2-44007c4d1b58",
-        "idempotency_key": "test-bdcea48a-853e-42c5-82ae-bf76ac95a89f",
+        "id": "36875aea-992e-4a1c-b9d6-0238511bc4aa",
+        "idempotency_key": "test-3c07a1fb-bb26-4d9e-ac83-a0fc4d43086d",
         "sender_id": 1,
         "receiver_id": 2,
         "amount": 10000,
         "currency": "INR",
         "status": "SUCCEEDED",
         "failure_code": null,
-        "created_at": "2026-10-30T14:05:13.393933+00:00",
-        "completed_at": "2026-10-30T14:05:13.393933+00:00"
+        "created_at": "2026-10-30T18:40:08.029445+00:00",
+        "completed_at": "2026-10-30T18:40:08.029445+00:00"
       },
       "audit": {
         "consistent": true,
@@ -133,7 +133,7 @@
         "2": 600000,
         "3": 250000
       },
-      "elapsed_seconds": 0.922,
+      "elapsed_seconds": 4.033,
       "audit": {
         "consistent": true,
         "opening_total": 1750000,
@@ -234,16 +234,16 @@
         "3": 250000
       },
       "response": {
-        "id": "4265034d-a716-4c57-975b-5c6ea6f1dd5c",
-        "idempotency_key": "test-0daa56c2-9b16-424a-a429-aed643297f8f",
+        "id": "091a1710-3635-4e8b-8236-59256aa31005",
+        "idempotency_key": "test-16475640-2939-4f77-ac5f-120b2424b5a9",
         "sender_id": 1,
         "receiver_id": 2,
         "amount": 1000001,
         "currency": "INR",
         "status": "FAILED",
         "failure_code": "INSUFFICIENT_FUNDS",
-        "created_at": "2026-10-30T14:05:14.778706+00:00",
-        "completed_at": "2026-10-30T14:05:14.778706+00:00"
+        "created_at": "2026-10-30T18:40:13.640023+00:00",
+        "completed_at": "2026-10-30T18:40:13.640023+00:00"
       },
       "audit": {
         "consistent": true,
@@ -534,7 +534,7 @@
     "expected": {
       "unauthorized": 401,
       "invalid": 422,
-      "missing_account": 404
+      "unauthorized_account": 403
     },
     "actual": {
       "unauthorized": 401,
@@ -547,7 +547,7 @@
         422,
         422
       ],
-      "missing_account": 404
+      "unauthorized_account": 403
     }
   },
   {
@@ -791,6 +791,61 @@
           "volume": 0
         }
       }
+    }
+  },
+  {
+    "test": "Client isolation",
+    "status": "PASS",
+    "expected": {
+      "owned_accounts_only": true,
+      "foreign_debit": 403,
+      "records_private": true
+    },
+    "actual": {
+      "client": "tenant-539f4f0279d0",
+      "passed": true
+    }
+  },
+  {
+    "test": "Safe key listing and revocation",
+    "status": "PASS",
+    "expected": {
+      "secret_once": true,
+      "revoked_rejected": true
+    },
+    "actual": {
+      "passed": true
+    }
+  },
+  {
+    "test": "API key expiry",
+    "status": "PASS",
+    "expected": {
+      "expired_rejected": true
+    },
+    "actual": {
+      "status": "EXPIRED"
+    }
+  },
+  {
+    "test": "Rotation and idempotency",
+    "status": "PASS",
+    "expected": {
+      "old_rejected": true,
+      "same_settlement": true
+    },
+    "actual": {
+      "same_id": true
+    }
+  },
+  {
+    "test": "Client administration authorization",
+    "status": "PASS",
+    "expected": {
+      "non_admin": 403
+    },
+    "actual": {
+      "status": 403
     }
   }
 ]

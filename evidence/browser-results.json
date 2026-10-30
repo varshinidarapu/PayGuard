@@ -1,5 +1,9 @@
 {
   "status": "PASS",
+  "client_identity_visible": true,
+  "one_time_key_creation": true,
+  "full_secret_absent_from_list": true,
+  "revocation": true,
   "six_dashboard_tests": "6 / 6 passed",
   "form_payment_and_retry_same_id": true,
   "key_persisted_after_reload": true,

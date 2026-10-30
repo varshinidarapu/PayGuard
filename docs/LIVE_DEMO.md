@@ -10,6 +10,14 @@ Review target: 31 October 2026. Rehearse once before the review. All transfers a
 4. Keep the README, final slides, and `docs/TEST_RESULTS.md` open. Never display the secret or unrelated personal information during screen sharing.
 5. Ensure Sandbox Wallet has at least INR 120. If needed, transfer money back from Demo Merchant using the form with a new key.
 
+## 0. Client identity and API keys (one minute)
+
+- Show the authenticated client badge and explain that account, payment and ledger data are client-scoped.
+- Open **API Key Management**. The list shows only prefix, client, label, expiry and status—never a full secret.
+- Create a temporary 7-day key. Show the one-time secret panel, then save/hide it.
+- Rotate or revoke the temporary key and show its status. Explain that API keys authenticate clients, while payment idempotency keys identify payment attempts.
+- Explain that rotation keeps the same client identity, so retrying an old payment key still returns the original settlement.
+
 ## Opening explanation (30 seconds)
 
 “PayGuard addresses the three problems in Slide 2: duplicate payments, incorrect balances during concurrent transfers, and unknown outcomes after failures. Redis recognizes completed duplicate requests. PostgreSQL permanently enforces request uniqueness and commits balances, payment status, and ledger entries together. This demonstration uses simulated internal money only.”
@@ -88,7 +96,7 @@ Type `\q` to exit psql. These commands are read only.
 
 ## Closing explanation (20 seconds)
 
-“The verified guarantee is at most one committed internal transfer per operator and idempotency key. PostgreSQL protects correctness. Redis speeds replay. The automated suite includes 100 simultaneous unique transfers and 100 simultaneous requests with one key, plus real process crashes. External bank settlement and production-scale availability are outside this academic sandbox.”
+“The verified guarantee is at most one committed internal transfer per client and payment idempotency key. PostgreSQL protects correctness. Redis speeds replay. API-key rotation does not reset idempotency. The automated suite includes multi-client isolation, 100 simultaneous unique transfers, 100 same-key requests and real process crashes.”
 
 ## If something goes wrong during review
 

@@ -37,7 +37,7 @@ def test_02_duplicate_payment(client):
     k=key();a=pay(client,k);b=pay(client,k)
     assert a.status_code==201 and b.status_code==200 and a.json()==b.json()
     assert b.headers['Idempotency-Replayed']=='true' and b.headers['Idempotency-Source']=='redis'
-    assert Redis.from_url(REDIS_URL).ttl(cache_key(k))>0
+    assert Redis.from_url(REDIS_URL).ttl(cache_key('sandbox-operator',k))>0
     assert audit(client)['stats']['total']==1
     assert balances(client)['1']==990000
     record('2 Duplicate payment',{'payments':1,'sender_balance':990000,'same_result':True}, {'first_status':a.status_code,'repeat_status':b.status_code,'same_result':a.json()==b.json(),'source':b.headers['Idempotency-Source'],'audit':audit(client)})
@@ -105,15 +105,15 @@ def test_08_simultaneous_same_key(client):
 def test_09_conflicting_payload(client):
     k=key();assert pay(client,k).status_code==201
     r=pay(client,k,{**BODY,'amount':10001});assert r.status_code==409
-    Redis.from_url(REDIS_URL).delete(cache_key(k))
+    Redis.from_url(REDIS_URL).delete(cache_key('sandbox-operator',k))
     r2=pay(client,k,{**BODY,'amount':10001});assert r2.status_code==409
     assert audit(client)['stats']['total']==1
     record('Key payload mismatch',{'redis_conflict':409,'database_conflict':409},{'redis_conflict':r.status_code,'database_conflict':r2.status_code,'audit':audit(client)})
 
 
 def test_10_redis_expiry(client):
-    k=key();first=pay(client,k);redis=Redis.from_url(REDIS_URL);redis.pexpire(cache_key(k),20);time.sleep(.05)
-    assert not redis.exists(cache_key(k))
+    k=key();first=pay(client,k);redis=Redis.from_url(REDIS_URL);redis.pexpire(cache_key('sandbox-operator',k),20);time.sleep(.05)
+    assert not redis.exists(cache_key('sandbox-operator',k))
     r=pay(client,k);assert r.status_code==200 and r.headers['Idempotency-Source']=='postgresql'
     assert r.json()==first.json() and audit(client)['stats']['total']==1
     record('Redis TTL expiry',{'settlements':1,'fallback':'postgresql'},{'source':r.headers['Idempotency-Source'],'same_result':r.json()==first.json(),'audit':audit(client)})
@@ -123,9 +123,9 @@ def test_11_validation_and_auth(client):
     assert httpx.get(trust_env=False, url=URL+'/api/accounts').status_code==401
     tests=[({},BODY),({'Idempotency-Key':'short'},BODY),({'Idempotency-Key':key()},{**BODY,'amount':-1}),({'Idempotency-Key':key()},{**BODY,'amount':1.5}),({'Idempotency-Key':key()},{**BODY,'sender_id':2}),({'Idempotency-Key':key()},{**BODY,'currency':'USD'}),({'Idempotency-Key':key()},{**BODY,'amount':True})]
     codes=[client.post('/api/payments',json=b,headers=h).status_code for h,b in tests];assert codes==[422]*len(tests)
-    assert pay(client,body={**BODY,'receiver_id':999}).status_code==404
+    assert pay(client,body={**BODY,'receiver_id':999}).status_code==403
     assert audit(client)['stats']['total']==0
-    record('Authentication and input validation',{'unauthorized':401,'invalid':422,'missing_account':404},{'unauthorized':401,'invalid_statuses':codes,'missing_account':404})
+    record('Authentication and input validation',{'unauthorized':401,'invalid':422,'unauthorized_account':403},{'unauthorized':401,'invalid_statuses':codes,'unauthorized_account':403})
 
 
 class Worker:
@@ -189,5 +189,72 @@ def test_15_database_constraints(client):
             with c.transaction():c.execute('UPDATE accounts SET balance=-1 WHERE id=1')
         with pytest.raises(psycopg.errors.RaiseException):
             with c.transaction():
-                c.execute("INSERT INTO payments(id,client_id,idempotency_key,request_hash,sender_id,receiver_id,amount,currency,status) VALUES (%s,'test','unfinished',%s,1,2,100,'INR','PROCESSING')",(uuid.uuid4(),'0'*64))
+                c.execute("INSERT INTO payments(id,client_id,idempotency_key,request_hash,sender_id,receiver_id,amount,currency,status) VALUES (%s,'sandbox-operator','unfinished',%s,1,2,100,'INR','PROCESSING')",(uuid.uuid4(),'0'*64))
     record('Database commit guards',{'negative_balance_blocked':True,'unfinished_payment_blocked':True},{'negative_balance_blocked':True,'unfinished_payment_blocked':True,'audit':audit(client)})
+
+
+def create_tenant(client, suffix=None):
+    tenant='tenant-'+(suffix or uuid.uuid4().hex[:12])
+    r=client.post('/api/clients',json={'name':'Second Client','client_id':tenant,'key_label':'Test key','expires_in_days':30})
+    assert r.status_code==201,r.text
+    secret=r.json()['api_key']['secret']
+    with psycopg.connect(DATABASE_URL) as c:
+        c.execute('INSERT INTO accounts(id,client_id,name,opening_balance,balance) VALUES (%s,%s,%s,50000,50000),(%s,%s,%s,25000,25000)',
+                  (101,tenant,'Tenant Wallet',102,tenant,'Tenant Reserve'))
+    return tenant,secret
+
+
+def authed(secret):
+    return httpx.Client(trust_env=False,base_url=URL,headers={'Authorization':'Bearer '+secret},timeout=20)
+
+
+def test_16_multiple_clients_and_ownership(client):
+    tenant,secret=create_tenant(client)
+    with authed(secret) as other:
+        assert {a['id'] for a in other.get('/api/accounts').json()}=={101,102}
+        assert pay(other,body={**BODY,'sender_id':1,'receiver_id':2}).status_code==403
+        r=pay(other,body={**BODY,'sender_id':101,'receiver_id':102,'amount':1000})
+        assert r.status_code==201
+        assert client.get('/api/payments/'+r.json()['id']).status_code==404
+        assert len(other.get('/api/payments').json())==1
+    record('Client isolation',{'owned_accounts_only':True,'foreign_debit':403,'records_private':True},{'client':tenant,'passed':True})
+
+
+def test_17_api_key_safe_listing_and_revocation(client):
+    made=client.post('/api/api-keys',json={'label':'Revocable key','expires_in_days':30}).json()
+    assert 'secret' in made
+    listed=client.get('/api/api-keys').json(); item=next(k for k in listed if k['id']==made['id'])
+    assert 'secret' not in item and item['prefix']==made['prefix'] and item['status']=='ACTIVE'
+    assert client.delete('/api/api-keys/'+made['id']).status_code==204
+    with authed(made['secret']) as revoked: assert revoked.get('/api/me').status_code==401
+    record('Safe key listing and revocation',{'secret_once':True,'revoked_rejected':True},{'passed':True})
+
+
+def test_18_api_key_expiry(client):
+    made=client.post('/api/api-keys',json={'label':'Expiry key','expires_in_days':1}).json()
+    with psycopg.connect(DATABASE_URL) as c:c.execute("UPDATE api_keys SET created_at=now()-interval '2 days',expires_at=now()-interval '1 day' WHERE id=%s",(made['id'],))
+    with authed(made['secret']) as expired: assert expired.get('/api/me').status_code==401
+    item=next(k for k in client.get('/api/api-keys').json() if k['id']==made['id']);assert item['status']=='EXPIRED'
+    record('API key expiry',{'expired_rejected':True},{'status':item['status']})
+
+
+def test_19_rotation_preserves_client_idempotency(client):
+    made=client.post('/api/api-keys',json={'label':'Old rotation key','expires_in_days':30}).json(); k=key()
+    with authed(made['secret']) as old:
+        first=pay(old,k); assert first.status_code==201
+        rotated=old.post('/api/api-keys/'+made['id']+'/rotate',json={'label':'Rotated key','expires_in_days':30})
+        assert rotated.status_code==201
+    with authed(made['secret']) as old: assert old.get('/api/me').status_code==401
+    with authed(rotated.json()['secret']) as new:
+        retry=pay(new,k);assert retry.status_code==200 and retry.json()['id']==first.json()['id']
+        assert retry.headers['Idempotency-Replayed']=='true'
+    assert audit(client)['stats']['total']==1
+    record('Rotation and idempotency',{'old_rejected':True,'same_settlement':True},{'same_id':True})
+
+
+def test_20_non_admin_cannot_create_client(client):
+    _,secret=create_tenant(client)
+    with authed(secret) as other:
+        r=other.post('/api/clients',json={'name':'Forbidden','client_id':'forbidden-client','key_label':'Initial key','expires_in_days':30})
+        assert r.status_code==403
+    record('Client administration authorization',{'non_admin':403},{'status':r.status_code})
