@@ -52,13 +52,14 @@ It creates/uses `payguard_test`, starts temporary API workers on internal ports,
 - Review database balances remain conserved at 1,750,000 paise.
 - Browser dashboard loads; the six browser buttons can be run manually after connecting.
 
-## GitHub and Vercel
+## GitHub and Render
 
-This project is a Docker Compose application with FastAPI, PostgreSQL, and Redis. Vercel can host a static frontend, but it cannot replace the PostgreSQL/Redis services or run this Compose stack as-is. The simplest reliable deployment is:
+The repository includes `render.yaml`, which defines the complete hosted prototype:
 
-- GitHub: store the source repository, excluding `.env`, `.venv`, caches, and generated secrets.
-- Backend: deploy the Docker application to a container host with managed PostgreSQL and Redis.
-- Vercel: use only for a separately configured frontend if the backend URL and CORS policy are added.
+- `payguard-app`: Docker web service running FastAPI and the dashboard.
+- `payguard-db`: managed PostgreSQL 16 database.
+- `payguard-redis`: Redis-compatible Render Key Value service.
 
-Before publishing, create a GitHub repository and provide its HTTPS or SSH remote URL. Then run `git init`, `git add .`, `git commit`, `git branch -M main`, `git remote add origin <URL>`, and `git push -u origin main`. Never push `.env` or API keys.
+In Render, choose **New > Blueprint**, connect the GitHub repository, and select the root `render.yaml`. Render creates the three linked resources and generates a new hosted API key. Do not copy the local `.env` secret to Render.
 
+After deployment, open the `payguard-app` environment variables, reveal/copy `API_KEY`, open the public `onrender.com` URL, paste the key, and click **Connect**. Free services can sleep when unused, so the first request may take longer.

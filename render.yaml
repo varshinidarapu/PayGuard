@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: payguard-app
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: payguard-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: payguard-redis
+          property: connectionString
+      - key: API_KEY
+        generateValue: true
+      - key: DEMO_MODE
+        value: "false"
+      - key: ALLOW_CRASH_TESTS
+        value: "false"
+      - key: IDEMPOTENCY_TTL_SECONDS
+        value: "86400"
+      - key: POOL_MAX_SIZE
+        value: "8"
+
+  - type: keyvalue
+    name: payguard-redis
+    plan: free
+    ipAllowList:
+      - source: 0.0.0.0/0
+        description: Render web service access
+
+databases:
+  - name: payguard-db
+    plan: free
+    postgresMajorVersion: "16"
+    databaseName: payguard
+    user: payguard
