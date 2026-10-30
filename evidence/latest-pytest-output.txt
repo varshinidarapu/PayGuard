@@ -1,0 +1,26 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.16, pytest-9.2.0, pluggy-1.7.0 -- /usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /app
+plugins: anyio-4.15.1
+collecting ... collected 16 items
+
+tests/test_payments.py::test_01_normal_payment PASSED                    [  6%]
+tests/test_payments.py::test_02_duplicate_payment PASSED                 [ 12%]
+tests/test_payments.py::test_03_concurrent_payments PASSED               [ 18%]
+tests/test_payments.py::test_04_lost_response_and_retry PASSED           [ 25%]
+tests/test_payments.py::test_05_insufficient_balance PASSED              [ 31%]
+tests/test_payments.py::test_06_rollback_consistency PASSED              [ 37%]
+tests/test_payments.py::test_07_concurrent_overspending PASSED           [ 43%]
+tests/test_payments.py::test_08_simultaneous_same_key PASSED             [ 50%]
+tests/test_payments.py::test_09_conflicting_payload PASSED               [ 56%]
+tests/test_payments.py::test_10_redis_expiry PASSED                      [ 62%]
+tests/test_payments.py::test_11_validation_and_auth PASSED               [ 68%]
+tests/test_payments.py::test_12_redis_unavailable PASSED                 [ 75%]
+tests/test_payments.py::test_13_process_crash[crash-before-commit-71-False] PASSED [ 81%]
+tests/test_payments.py::test_13_process_crash[crash-after-commit-72-True] PASSED [ 87%]
+tests/test_payments.py::test_14_opposite_direction_lock_order PASSED     [ 93%]
+tests/test_payments.py::test_15_database_constraints PASSED              [100%]
+
+----------------- generated xml file: /app/evidence/junit.xml ------------------
+============================== 16 passed in 9.07s ==============================

@@ -1,0 +1,11 @@
+# PayGuard completion checklist
+- [x] Inspect source slides, especially Slide 2
+- [x] PostgreSQL schema, locking, atomic payments and ledger
+- [x] Redis idempotency, permanent database deduplication
+- [x] Failure injection and safe retries
+- [x] Dashboard and six live demonstrations
+- [x] Execute integration, concurrency and crash tests
+- [x] Browser verification
+- [x] README, API guide, academic report, viva and demo script
+- [x] Runnable prototype package
+- [ ] Final presentation (deferred at user request)

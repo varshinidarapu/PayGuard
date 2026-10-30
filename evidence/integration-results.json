@@ -1,0 +1,796 @@
+[
+  {
+    "test": "1 Normal payment",
+    "status": "PASS",
+    "expected": {
+      "balances": {
+        "1": 990000,
+        "2": 510000,
+        "3": 250000
+      },
+      "payments": 1
+    },
+    "actual": {
+      "balances": {
+        "1": 990000,
+        "2": 510000,
+        "3": 250000
+      },
+      "payment": {
+        "id": "b389fe28-8fb5-4bbb-b3e2-44007c4d1b58",
+        "idempotency_key": "test-bdcea48a-853e-42c5-82ae-bf76ac95a89f",
+        "sender_id": 1,
+        "receiver_id": 2,
+        "amount": 10000,
+        "currency": "INR",
+        "status": "SUCCEEDED",
+        "failure_code": null,
+        "created_at": "2026-10-30T14:05:13.393933+00:00",
+        "completed_at": "2026-10-30T14:05:13.393933+00:00"
+      },
+      "audit": {
+        "consistent": true,
+        "opening_total": 1750000,
+        "current_total": 1750000,
+        "invalid_payments": 0,
+        "accounts": [
+          {
+            "id": 1,
+            "name": "Sandbox Wallet",
+            "opening_balance": 1000000,
+            "balance": 990000,
+            "expected_balance": 990000
+          },
+          {
+            "id": 2,
+            "name": "Demo Merchant",
+            "opening_balance": 500000,
+            "balance": 510000,
+            "expected_balance": 510000
+          },
+          {
+            "id": 3,
+            "name": "Reserve Wallet",
+            "opening_balance": 250000,
+            "balance": 250000,
+            "expected_balance": 250000
+          }
+        ],
+        "stats": {
+          "total": 1,
+          "succeeded": 1,
+          "failed": 0,
+          "volume": 10000
+        }
+      }
+    }
+  },
+  {
+    "test": "2 Duplicate payment",
+    "status": "PASS",
+    "expected": {
+      "payments": 1,
+      "sender_balance": 990000,
+      "same_result": true
+    },
+    "actual": {
+      "first_status": 201,
+      "repeat_status": 200,
+      "same_result": true,
+      "source": "redis",
+      "audit": {
+        "consistent": true,
+        "opening_total": 1750000,
+        "current_total": 1750000,
+        "invalid_payments": 0,
+        "accounts": [
+          {
+            "id": 1,
+            "name": "Sandbox Wallet",
+            "opening_balance": 1000000,
+            "balance": 990000,
+            "expected_balance": 990000
+          },
+          {
+            "id": 2,
+            "name": "Demo Merchant",
+            "opening_balance": 500000,
+            "balance": 510000,
+            "expected_balance": 510000
+          },
+          {
+            "id": 3,
+            "name": "Reserve Wallet",
+            "opening_balance": 250000,
+            "balance": 250000,
+            "expected_balance": 250000
+          }
+        ],
+        "stats": {
+          "total": 1,
+          "succeeded": 1,
+          "failed": 0,
+          "volume": 10000
+        }
+      }
+    }
+  },
+  {
+    "test": "3 Concurrent transactions",
+    "status": "PASS",
+    "expected": {
+      "parallel_requests": 100,
+      "balances": {
+        "1": 900000,
+        "2": 600000,
+        "3": 250000
+      }
+    },
+    "actual": {
+      "successful": 100,
+      "balances": {
+        "1": 900000,
+        "2": 600000,
+        "3": 250000
+      },
+      "elapsed_seconds": 0.922,
+      "audit": {
+        "consistent": true,
+        "opening_total": 1750000,
+        "current_total": 1750000,
+        "invalid_payments": 0,
+        "accounts": [
+          {
+            "id": 1,
+            "name": "Sandbox Wallet",
+            "opening_balance": 1000000,
+            "balance": 900000,
+            "expected_balance": 900000
+          },
+          {
+            "id": 2,
+            "name": "Demo Merchant",
+            "opening_balance": 500000,
+            "balance": 600000,
+            "expected_balance": 600000
+          },
+          {
+            "id": 3,
+            "name": "Reserve Wallet",
+            "opening_balance": 250000,
+            "balance": 250000,
+            "expected_balance": 250000
+          }
+        ],
+        "stats": {
+          "total": 100,
+          "succeeded": 100,
+          "failed": 0,
+          "volume": 100000
+        }
+      }
+    }
+  },
+  {
+    "test": "4 Network timeout and retry",
+    "status": "PASS",
+    "expected": {
+      "timeout": true,
+      "payments": 1,
+      "sender_balance": 990000
+    },
+    "actual": {
+      "client_timeout": true,
+      "retry_replayed": "true",
+      "same_id": true,
+      "audit": {
+        "consistent": true,
+        "opening_total": 1750000,
+        "current_total": 1750000,
+        "invalid_payments": 0,
+        "accounts": [
+          {
+            "id": 1,
+            "name": "Sandbox Wallet",
+            "opening_balance": 1000000,
+            "balance": 990000,
+            "expected_balance": 990000
+          },
+          {
+            "id": 2,
+            "name": "Demo Merchant",
+            "opening_balance": 500000,
+            "balance": 510000,
+            "expected_balance": 510000
+          },
+          {
+            "id": 3,
+            "name": "Reserve Wallet",
+            "opening_balance": 250000,
+            "balance": 250000,
+            "expected_balance": 250000
+          }
+        ],
+        "stats": {
+          "total": 1,
+          "succeeded": 1,
+          "failed": 0,
+          "volume": 10000
+        }
+      }
+    }
+  },
+  {
+    "test": "5 Insufficient balance",
+    "status": "PASS",
+    "expected": {
+      "balances_unchanged": true,
+      "status": "FAILED"
+    },
+    "actual": {
+      "balances": {
+        "1": 1000000,
+        "2": 500000,
+        "3": 250000
+      },
+      "response": {
+        "id": "4265034d-a716-4c57-975b-5c6ea6f1dd5c",
+        "idempotency_key": "test-0daa56c2-9b16-424a-a429-aed643297f8f",
+        "sender_id": 1,
+        "receiver_id": 2,
+        "amount": 1000001,
+        "currency": "INR",
+        "status": "FAILED",
+        "failure_code": "INSUFFICIENT_FUNDS",
+        "created_at": "2026-10-30T14:05:14.778706+00:00",
+        "completed_at": "2026-10-30T14:05:14.778706+00:00"
+      },
+      "audit": {
+        "consistent": true,
+        "opening_total": 1750000,
+        "current_total": 1750000,
+        "invalid_payments": 0,
+        "accounts": [
+          {
+            "id": 1,
+            "name": "Sandbox Wallet",
+            "opening_balance": 1000000,
+            "balance": 1000000,
+            "expected_balance": 1000000
+          },
+          {
+            "id": 2,
+            "name": "Demo Merchant",
+            "opening_balance": 500000,
+            "balance": 500000,
+            "expected_balance": 500000
+          },
+          {
+            "id": 3,
+            "name": "Reserve Wallet",
+            "opening_balance": 250000,
+            "balance": 250000,
+            "expected_balance": 250000
+          }
+        ],
+        "stats": {
+          "total": 1,
+          "succeeded": 0,
+          "failed": 1,
+          "volume": 0
+        }
+      }
+    }
+  },
+  {
+    "test": "6 Transaction rollback and retry",
+    "status": "PASS",
+    "expected": {
+      "rollback_no_changes": true,
+      "retry_payments": 1
+    },
+    "actual": {
+      "injected_status": 503,
+      "balances_after_rollback": {
+        "1": 1000000,
+        "2": 500000,
+        "3": 250000
+      },
+      "retry_status": 201,
+      "audit": {
+        "consistent": true,
+        "opening_total": 1750000,
+        "current_total": 1750000,
+        "invalid_payments": 0,
+        "accounts": [
+          {
+            "id": 1,
+            "name": "Sandbox Wallet",
+            "opening_balance": 1000000,
+            "balance": 990000,
+            "expected_balance": 990000
+          },
+          {
+            "id": 2,
+            "name": "Demo Merchant",
+            "opening_balance": 500000,
+            "balance": 510000,
+            "expected_balance": 510000
+          },
+          {
+            "id": 3,
+            "name": "Reserve Wallet",
+            "opening_balance": 250000,
+            "balance": 250000,
+            "expected_balance": 250000
+          }
+        ],
+        "stats": {
+          "total": 1,
+          "succeeded": 1,
+          "failed": 0,
+          "volume": 10000
+        }
+      }
+    }
+  },
+  {
+    "test": "Concurrent overspending",
+    "status": "PASS",
+    "expected": {
+      "succeeded": 10,
+      "failed": 10,
+      "sender_balance": 0
+    },
+    "actual": {
+      "succeeded": 10,
+      "failed": 10,
+      "balances": {
+        "1": 0,
+        "2": 1500000,
+        "3": 250000
+      },
+      "audit": {
+        "consistent": true,
+        "opening_total": 1750000,
+        "current_total": 1750000,
+        "invalid_payments": 0,
+        "accounts": [
+          {
+            "id": 1,
+            "name": "Sandbox Wallet",
+            "opening_balance": 1000000,
+            "balance": 0,
+            "expected_balance": 0
+          },
+          {
+            "id": 2,
+            "name": "Demo Merchant",
+            "opening_balance": 500000,
+            "balance": 1500000,
+            "expected_balance": 1500000
+          },
+          {
+            "id": 3,
+            "name": "Reserve Wallet",
+            "opening_balance": 250000,
+            "balance": 250000,
+            "expected_balance": 250000
+          }
+        ],
+        "stats": {
+          "total": 20,
+          "succeeded": 10,
+          "failed": 10,
+          "volume": 1000000
+        }
+      }
+    }
+  },
+  {
+    "test": "100 simultaneous duplicates",
+    "status": "PASS",
+    "expected": {
+      "settlements": 1,
+      "replays": 99
+    },
+    "actual": {
+      "settlements": 1,
+      "replays": 99,
+      "audit": {
+        "consistent": true,
+        "opening_total": 1750000,
+        "current_total": 1750000,
+        "invalid_payments": 0,
+        "accounts": [
+          {
+            "id": 1,
+            "name": "Sandbox Wallet",
+            "opening_balance": 1000000,
+            "balance": 990000,
+            "expected_balance": 990000
+          },
+          {
+            "id": 2,
+            "name": "Demo Merchant",
+            "opening_balance": 500000,
+            "balance": 510000,
+            "expected_balance": 510000
+          },
+          {
+            "id": 3,
+            "name": "Reserve Wallet",
+            "opening_balance": 250000,
+            "balance": 250000,
+            "expected_balance": 250000
+          }
+        ],
+        "stats": {
+          "total": 1,
+          "succeeded": 1,
+          "failed": 0,
+          "volume": 10000
+        }
+      }
+    }
+  },
+  {
+    "test": "Key payload mismatch",
+    "status": "PASS",
+    "expected": {
+      "redis_conflict": 409,
+      "database_conflict": 409
+    },
+    "actual": {
+      "redis_conflict": 409,
+      "database_conflict": 409,
+      "audit": {
+        "consistent": true,
+        "opening_total": 1750000,
+        "current_total": 1750000,
+        "invalid_payments": 0,
+        "accounts": [
+          {
+            "id": 1,
+            "name": "Sandbox Wallet",
+            "opening_balance": 1000000,
+            "balance": 990000,
+            "expected_balance": 990000
+          },
+          {
+            "id": 2,
+            "name": "Demo Merchant",
+            "opening_balance": 500000,
+            "balance": 510000,
+            "expected_balance": 510000
+          },
+          {
+            "id": 3,
+            "name": "Reserve Wallet",
+            "opening_balance": 250000,
+            "balance": 250000,
+            "expected_balance": 250000
+          }
+        ],
+        "stats": {
+          "total": 1,
+          "succeeded": 1,
+          "failed": 0,
+          "volume": 10000
+        }
+      }
+    }
+  },
+  {
+    "test": "Redis TTL expiry",
+    "status": "PASS",
+    "expected": {
+      "settlements": 1,
+      "fallback": "postgresql"
+    },
+    "actual": {
+      "source": "postgresql",
+      "same_result": true,
+      "audit": {
+        "consistent": true,
+        "opening_total": 1750000,
+        "current_total": 1750000,
+        "invalid_payments": 0,
+        "accounts": [
+          {
+            "id": 1,
+            "name": "Sandbox Wallet",
+            "opening_balance": 1000000,
+            "balance": 990000,
+            "expected_balance": 990000
+          },
+          {
+            "id": 2,
+            "name": "Demo Merchant",
+            "opening_balance": 500000,
+            "balance": 510000,
+            "expected_balance": 510000
+          },
+          {
+            "id": 3,
+            "name": "Reserve Wallet",
+            "opening_balance": 250000,
+            "balance": 250000,
+            "expected_balance": 250000
+          }
+        ],
+        "stats": {
+          "total": 1,
+          "succeeded": 1,
+          "failed": 0,
+          "volume": 10000
+        }
+      }
+    }
+  },
+  {
+    "test": "Authentication and input validation",
+    "status": "PASS",
+    "expected": {
+      "unauthorized": 401,
+      "invalid": 422,
+      "missing_account": 404
+    },
+    "actual": {
+      "unauthorized": 401,
+      "invalid_statuses": [
+        422,
+        422,
+        422,
+        422,
+        422,
+        422,
+        422
+      ],
+      "missing_account": 404
+    }
+  },
+  {
+    "test": "Redis unavailable",
+    "status": "PASS",
+    "expected": {
+      "settlements": 1,
+      "database_fallback": true
+    },
+    "actual": {
+      "same_result": true,
+      "audit": {
+        "consistent": true,
+        "opening_total": 1750000,
+        "current_total": 1750000,
+        "invalid_payments": 0,
+        "accounts": [
+          {
+            "id": 1,
+            "name": "Sandbox Wallet",
+            "opening_balance": 1000000,
+            "balance": 990000,
+            "expected_balance": 990000
+          },
+          {
+            "id": 2,
+            "name": "Demo Merchant",
+            "opening_balance": 500000,
+            "balance": 510000,
+            "expected_balance": 510000
+          },
+          {
+            "id": 3,
+            "name": "Reserve Wallet",
+            "opening_balance": 250000,
+            "balance": 250000,
+            "expected_balance": 250000
+          }
+        ],
+        "stats": {
+          "total": 1,
+          "succeeded": 1,
+          "failed": 0,
+          "volume": 10000
+        }
+      }
+    }
+  },
+  {
+    "test": "Actual process crash-before-commit",
+    "status": "PASS",
+    "expected": {
+      "worker_exit": 71,
+      "committed_before_retry": false,
+      "final_settlements": 1
+    },
+    "actual": {
+      "worker_exit": 71,
+      "lookup_status": 404,
+      "retry_status": 201,
+      "audit": {
+        "consistent": true,
+        "opening_total": 1750000,
+        "current_total": 1750000,
+        "invalid_payments": 0,
+        "accounts": [
+          {
+            "id": 1,
+            "name": "Sandbox Wallet",
+            "opening_balance": 1000000,
+            "balance": 990000,
+            "expected_balance": 990000
+          },
+          {
+            "id": 2,
+            "name": "Demo Merchant",
+            "opening_balance": 500000,
+            "balance": 510000,
+            "expected_balance": 510000
+          },
+          {
+            "id": 3,
+            "name": "Reserve Wallet",
+            "opening_balance": 250000,
+            "balance": 250000,
+            "expected_balance": 250000
+          }
+        ],
+        "stats": {
+          "total": 1,
+          "succeeded": 1,
+          "failed": 0,
+          "volume": 10000
+        }
+      }
+    }
+  },
+  {
+    "test": "Actual process crash-after-commit",
+    "status": "PASS",
+    "expected": {
+      "worker_exit": 72,
+      "committed_before_retry": true,
+      "final_settlements": 1
+    },
+    "actual": {
+      "worker_exit": 72,
+      "lookup_status": 200,
+      "retry_status": 200,
+      "audit": {
+        "consistent": true,
+        "opening_total": 1750000,
+        "current_total": 1750000,
+        "invalid_payments": 0,
+        "accounts": [
+          {
+            "id": 1,
+            "name": "Sandbox Wallet",
+            "opening_balance": 1000000,
+            "balance": 990000,
+            "expected_balance": 990000
+          },
+          {
+            "id": 2,
+            "name": "Demo Merchant",
+            "opening_balance": 500000,
+            "balance": 510000,
+            "expected_balance": 510000
+          },
+          {
+            "id": 3,
+            "name": "Reserve Wallet",
+            "opening_balance": 250000,
+            "balance": 250000,
+            "expected_balance": 250000
+          }
+        ],
+        "stats": {
+          "total": 1,
+          "succeeded": 1,
+          "failed": 0,
+          "volume": 10000
+        }
+      }
+    }
+  },
+  {
+    "test": "Opposite-direction transfers",
+    "status": "PASS",
+    "expected": {
+      "successful": 40,
+      "no_deadlock": true,
+      "net_change": 0
+    },
+    "actual": {
+      "successful": 40,
+      "balances": {
+        "1": 1000000,
+        "2": 500000,
+        "3": 250000
+      },
+      "audit": {
+        "consistent": true,
+        "opening_total": 1750000,
+        "current_total": 1750000,
+        "invalid_payments": 0,
+        "accounts": [
+          {
+            "id": 1,
+            "name": "Sandbox Wallet",
+            "opening_balance": 1000000,
+            "balance": 1000000,
+            "expected_balance": 1000000
+          },
+          {
+            "id": 2,
+            "name": "Demo Merchant",
+            "opening_balance": 500000,
+            "balance": 500000,
+            "expected_balance": 500000
+          },
+          {
+            "id": 3,
+            "name": "Reserve Wallet",
+            "opening_balance": 250000,
+            "balance": 250000,
+            "expected_balance": 250000
+          }
+        ],
+        "stats": {
+          "total": 40,
+          "succeeded": 40,
+          "failed": 0,
+          "volume": 4000
+        }
+      }
+    }
+  },
+  {
+    "test": "Database commit guards",
+    "status": "PASS",
+    "expected": {
+      "negative_balance_blocked": true,
+      "unfinished_payment_blocked": true
+    },
+    "actual": {
+      "negative_balance_blocked": true,
+      "unfinished_payment_blocked": true,
+      "audit": {
+        "consistent": true,
+        "opening_total": 1750000,
+        "current_total": 1750000,
+        "invalid_payments": 0,
+        "accounts": [
+          {
+            "id": 1,
+            "name": "Sandbox Wallet",
+            "opening_balance": 1000000,
+            "balance": 1000000,
+            "expected_balance": 1000000
+          },
+          {
+            "id": 2,
+            "name": "Demo Merchant",
+            "opening_balance": 500000,
+            "balance": 500000,
+            "expected_balance": 500000
+          },
+          {
+            "id": 3,
+            "name": "Reserve Wallet",
+            "opening_balance": 250000,
+            "balance": 250000,
+            "expected_balance": 250000
+          }
+        ],
+        "stats": {
+          "total": 0,
+          "succeeded": 0,
+          "failed": 0,
+          "volume": 0
+        }
+      }
+    }
+  }
+]
