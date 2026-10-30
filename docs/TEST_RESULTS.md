@@ -34,6 +34,12 @@ All amounts below are integer paise. Each backend case starts with fresh account
 
 Chromium 134 executed the actual dashboard. All six tests passed. A normal form payment followed by Retry last submitted request returned the same payment ID. The original key survived reload. At 390 pixels, the document did not overflow horizontally. No JavaScript page errors were observed. Screenshots were used internally for layout inspection and are not distributed.
 
+## Hosted Render verification
+
+On 30 October 2026, the public Render deployment at `https://payguard-app-tmwg.onrender.com/` reported PostgreSQL and Redis online with ledger integrity verified. The complete dashboard test bench reported **6 / 6 passed**: normal payment, duplicate request, concurrent transfers, lost response and retry, insufficient funds, and rollback consistency. The rollback evidence showed HTTP 503, no committed payment record, unchanged balances, and a consistent ledger, as expected.
+
+The hosted environment uses Render PostgreSQL and Redis-compatible Key Value resources. Its generated `API_KEY` remains in Render environment variables and is not stored in this repository.
+
 ## Evidence and reproduction
 
 - `evidence/pytest-output.txt`: final terminal output, including all 16 case results.
@@ -47,7 +53,7 @@ The observed 100-unique-request case took 0.922 seconds in this local environmen
 
 ## Not executed
 
-Docker image build / Compose startup, Windows-specific launchers, database-server power failure, disk corruption, replicated failover and external banking integration were not executed. No such results are claimed. PostgreSQL and Redis were real services, not mocks or SQLite substitutes.
+Database-server power failure, disk corruption, replicated failover and external banking integration were not executed. No such results are claimed. Docker Compose startup was verified on Windows, and PostgreSQL and Redis were real services, not mocks or SQLite substitutes.
 
 ## Debugging history
 
